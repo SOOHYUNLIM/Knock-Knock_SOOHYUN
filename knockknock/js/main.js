@@ -1,22 +1,22 @@
 const $login = $('#login')
 const $interest = $('#interest')
+const $waiting = $('#waiting')
+
 const $leftContent = $(".leftContent")
 const $rightContent = $(".rightContent")
+const $centerContent = $(".centerContent")
 const $title = $(".title")
 const $date = $(".date")
 
 const Social = Object.freeze({
-    google: 'http://localhost:8080/oauth2/authorization/google',
-    naver: 'http://localhost:8080/oauth2/authorization/naver',
-    kakao: 'http://localhost:8080/oauth2/authorization/kakao',
-    facebook: 'http://localhost:8080/oauth2/authorization/facebook'
+  
 })
 const Method = Object.freeze({
     GET: 'GET', POST: 'POST', PUT: 'PUT', DELETE: 'DELETE'
 })
 
 const HttpStatus = Object.freeze({
-    OK: 200, MOVED_PERMANENTLY: 301, NO_CONTENT: 204
+    OK: 200, MOVED_PERMANENTLY: 301, NO_CONTENT: 204, CREATED: 201
 })
 
 const messaging = (function () {
@@ -43,10 +43,6 @@ var prevAjax = null
 var checkingData = null
 
 $(document).ready(function () {
-    $("#test").on('click', function (event) {
-        new AjaxBuilder().url("logout").method(Method.GET).build()
-    })
-
 
     $(".socialLogin").on('click', function (event) {
         socialLogin(Social[this.getAttribute('data-site')])
@@ -63,34 +59,57 @@ $(document).ready(function () {
                 } else {
                     $title.text("지원하지 않는 쇼핑몰 입니다!")
                     $date.text("원하시는 상품명을 입력해주세요...")
-                    $leftContent.html('<input type="text" class="wantedTitle"><span class="naverBtn">찾기</span>')
+                    $centerContent.html('<input type="text" class="wantedTitle"><span class="naverBtn">찾기</span>')
                 }
             })
             .build())
     })
 
     $(".content").on('click', '.pickBtn', function (event) {
-        document.getElementsByClassName('wantedPrice')[0].value
-        console.log(checkingData)
-        let pick = {product: {title: checkingData.title}, wantedPrice: checkingData.wantedPrice}
-        new AjaxBuilder().method(Method.POST).url("pick").data(JSON.stringify(pick)).build()
+        checkingData.wantedPrice = uncomma(document.getElementsByClassName('wantedPrice')[0].value)
+        let pick = {product: {title: checkingData.title, price: checkingData.price, fee: checkingData.fee, link: checkingData.link, image: checkingData.image}, wantedPrice: checkingData.wantedPrice}
+        new AjaxBuilder().method(Method.POST).url("pick").data(JSON.stringify(pick)).success(status=>status===HttpStatus.CREATED ? alert("Pick 완료!") : alert("이미 등록되어있습니다!")).build()
     }).on('keyup', '.wantedPrice', function (event) {
         inputNumberFormat(this)
     }).on('click', '.productTitle', function (event) {
         new AjaxBuilder().method(Method.GET).url("click").data({no: this.getAttribute("data-no")}).build()
     }).on('click', '.naverBtn', event => {
+        $waiting.css('display', 'block')
         let title = document.getElementsByClassName('wantedTitle')[0].value
-        new AjaxBuilder().method(Method.GET).url("navershopping").data({title: title}).success(data=>pickMe(data)).build()
+        setTimeout(function () {
+            new AjaxBuilder().method(Method.GET).url("navershopping/"+title).success(data=>pickMe(data)).build()
+        }, 500)
+    }).on('click', '#logout', event =>
+        new AjaxBuilder().url("logout").method(Method.GET).build()
+    ).on('click', '#interestBtn', event =>
+        //내 관심사 가져와서 채워넣기
+        $interest.css('display', 'block')
+    ).on('click', '#pickListBtn', event => {
+        $leftContent.html('')
+        $rightContent.html('')
+        new AjaxBuilder().url("pickList").method(Method.GET).success(list => {
+            console.log(list)
+            Array.from(list).forEach(item => item.no % 2 == 0 ? appendRightContent("#pickListTemplate", item) : appendLeftContent("#pickListTemplate", item))
+        }).build()
+    }).on('click', '.dropPick', function (event) {
+        let $this = $(this)
+        new AjaxBuilder().url("dropPick/"+$this.attr('data-no')).method(Method.DELETE).success(data=>{
+            alert("삭제가 완료되었습니다!")
+            $this.parents(".container").remove()
+        }).build()
     })
 
-
-    $("#interestBtn").on('click', event => $interest.css('display', 'block'))
+    $("#infoSetBtn").on('click', event => {
+        resetContent()
+        $title.text("")
+        $date.text("설정 페이지")
+        $centerContent.html("<button id='pickListBtn'>Pick 목록</button><button id='interestBtn'>관심사 설정</button><button id='logout'>로그아웃</button>")
+    })
 
 
     $("#saveInterestBtn").on('click', event => {
         let interests = new Array();
         $("input:checkbox[name=category]:checked").each((index, item) => interests.push(item.value))
-        //리스트 갱신 필요?
         interests.length > 0 ? new AjaxBuilder().method(Method.PUT).url("updateInterest").data(JSON.stringify(interests)).success(status => $interest.css('display', 'none')).build() : alert('하나 이상 선택해주세요!')
     })
 
@@ -101,7 +120,7 @@ $(document).ready(function () {
             $title.text("Knock Knock")
             $date.text(now.toLocaleDateString().replace(/ /gi, '').slice(0, -1) + (hour >= 12 ? ' PM ' + (hour - 12) : ' AM ' + hour) + '시 특가!')
             resetContent()
-            Array.from(list).forEach(item => item.no % 2 == 0 ? appendLeftContent(item) : appendRightContent(item))
+            Array.from(list).forEach(item => item.no % 2 == 0 ? appendLeftContent("#listTemplate",item) : appendRightContent("#listTemplate", item))
         }).build())
 
     $("#listBtn").trigger('click')
@@ -130,22 +149,23 @@ function setTemplate(templateName, data) {
 }
 
 function pickScrean(data) {
+    $waiting.css('display', 'none')
     data.price = comma(data.price)
-    data.fee = data.fee === "" ? '무료' : comma(data.fee)
+    data.fee = data.fee === 0 ? '무료' : comma(data.fee)
     return setTemplate("#pickTemplate", data)
 }
 
-function content(data) {
+function content(template, data) {
     let product = data.product
-    product.no = data.no
+    product.pno = data.pno
     product.fee = product.fee === 0 ? '무료' : comma(product.fee)
     product.price = comma(product.price)
-    return setTemplate('#listTemplate', product)
+    return setTemplate(template, product)
 }
 
 function pickMe(data) {
-    console.log(data)
-    checkingData = data
+    resetContent()
+    checkingData = $.extend(true, {}, data)
     $title.text("Pick Me!")
     $date.text("")
     $leftContent.html('<img src="'+data.image+'" style="width: auto; height: 200px;">')
@@ -153,16 +173,17 @@ function pickMe(data) {
 }
 
 function resetContent() {
+    $centerContent.html('')
     $leftContent.html('')
     $rightContent.html('')
 }
 
-function appendLeftContent(data) {
-    $leftContent.append(content(data))
+function appendLeftContent(template, data) {
+    $leftContent.append(content(template, data))
 }
 
-function appendRightContent(data) {
-    $rightContent.append(content(data))
+function appendRightContent(template,data) {
+    $rightContent.append(content(template, data))
 }
 
 function registerClientToken() {
@@ -197,6 +218,7 @@ function executeAjax(ajax) {
         type: ajax.method,
         data: ajax.data,
         contentType: "application/json",
+        async: false,
         success: function (response, status, xhr) {
             ajax.success(response, status, xhr )
         },

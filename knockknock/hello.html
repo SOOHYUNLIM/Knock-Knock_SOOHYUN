@@ -9,7 +9,7 @@
 <ul>
     <li><span class="active" id="listBtn">전단지</span></li>
     <li><span id="checkBtn">PICK</span></li>
-    <li><span id="interestBtn">설정</span></li>
+    <li><span id="infoSetBtn">설정</span></li>
 </ul>
 
 <div class="titleDiv content">
@@ -17,12 +17,17 @@
     <h3 class="date" style="font-size: 30px;"></h3>
 </div>
 
-<span class="productPrice" id="test">로그아웃</span>
 <div id="main" class="content">
+    <div class="centerContent"></div>
     <div class="leftContent" style="float: left;"></div>
     <div class="rightContent" style="float: right;"></div>
 </div>
 
+
+<div class="modal" id="waiting">
+    <div class="modal-content content" style="background-image: url(img/waiting.gif); background-position: center">
+    </div>
+</div>
 
 <div class="modal" id="login">
     <div class="modal-content content">
@@ -62,6 +67,19 @@
         <div style="width: 100px">
             <a target="_blank" href="{{link}}" data-no="{{no}}" class="productTitle">{{title}}</a>
             <span class="productPrice">{{price}} / {{fee}}</span>
+        </div>
+    </div>
+</div>
+</script>
+
+<script id="pickListTemplate" type="x-tmpl-mustache">
+<div class="container">
+    <div style="display: flex">
+        <img class="productImg" src="{{image}}">
+        <div style="width: 100px">
+            <a target="_blank" href="{{link}}" class="productTitle">{{title}}</a>
+            <span class="productPrice">{{price}} / {{fee}}</span>
+            <span class="productPrice dropPick" data-no="{{pno}}" >&times;</span>
         </div>
     </div>
 </div>

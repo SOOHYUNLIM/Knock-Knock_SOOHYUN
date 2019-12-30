@@ -15,6 +15,7 @@ import com.google.firebase.messaging.Notification;
 import com.google.firebase.messaging.WebpushConfig;
 import com.google.firebase.messaging.WebpushFcmOptions;
 
+import org.jarvis.kk.domain.Pick;
 import org.springframework.stereotype.Service;
 
 /**
@@ -69,9 +70,16 @@ public final class FCMService {
         }
     }
 
-    public void pushOneFcm(String token){
-        Message message = Message.builder().putData("msg", "SUCCESS")
-                .setToken(token).build();
+    public void pushOneFcm(Pick pick, String token){
+        Notification notification = Notification.builder().setTitle("Knock Knock").setBody(pick.getProduct().getTitle())
+                .setImage(pick.getProduct().getImage()).build();
+
+        Message message = Message.builder()
+                .setWebpushConfig(WebpushConfig.builder()
+                        .setFcmOptions(
+                                WebpushFcmOptions.withLink(pick.getProduct().getLink()))
+                        .build())
+                .setNotification(notification).setToken(token).build();
         try {
             FirebaseMessaging.getInstance(firebaseApp).send(message);
         } catch (FirebaseMessagingException e) {

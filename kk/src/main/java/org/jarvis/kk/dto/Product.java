@@ -3,8 +3,8 @@ package org.jarvis.kk.dto;
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
 
-import com.google.auto.value.AutoValue.Builder;
-
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -15,6 +15,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 @Builder
 @Embeddable
 public class Product {
